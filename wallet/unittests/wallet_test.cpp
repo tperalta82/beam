@@ -22,6 +22,7 @@
 #include "wallet/core/secstring.h"
 #include "wallet/core/base58.h"
 #include "wallet/client/wallet_client.h"
+#include "wallet/client/wallet_creator.h"
 #include "utility/test_helpers.h"
 #include "core/radixtree.h"
 #include "core/unittest/mini_blockchain.h"
@@ -1542,8 +1543,12 @@ namespace
     }
     struct TestWalletClient : public WalletClient
     {
-        TestWalletClient(IWalletDB::Ptr walletDB, const std::string& nodeAddr, io::Reactor::Ptr reactor, IPrivateKeyKeeper::Ptr keyKeeper)
-            : WalletClient(walletDB, nodeAddr, reactor, keyKeeper)
+        TestWalletClient(io::Reactor::Ptr reactor,
+                         IWalletDB::Ptr walletDB,
+                         IPrivateKeyKeeper::Ptr keyKeeper,
+                         NodeNetwork::Ptr nodeNetwork,
+                         Wallet::Ptr wallet)
+            : WalletClient(reactor, walletDB, keyKeeper, nodeNetwork, wallet)
         {
         }
 
@@ -1597,32 +1602,34 @@ namespace
         auto db = createSenderWalletDB();
         auto keyKeeper = make_shared<LocalPrivateKeyKeeper>(db, db->get_MasterKdf());
         std::string nodeAddr = "127.0.0.1:32546";
-        TestWalletClient client(db, nodeAddr, io::Reactor::create(), keyKeeper);
-        client.start();
+
+        auto walletEnv = std::make_shared<WalletEnvironment>(mainReactor, db, keyKeeper, nodeAddr);
+        std::shared_ptr<TestWalletClient> client = WalletCreator::createWallet<TestWalletClient>(*walletEnv);
+
+        client->start();
         auto timer = io::Timer::create(*mainReactor);
         
-        auto startEvent = io::AsyncEvent::create(*mainReactor, [&timer, mainReactor, &client, keyKeeper]()
+        auto startEvent = io::AsyncEvent::create(
+            *mainReactor,
+            [&timer, walletEnv, client]()
             {
-                
+                std::vector<WalletAddress> newAddresses;
+                newAddresses.resize(50);
+                for (auto& addr : newAddresses)
                 {
-                    std::vector<WalletAddress> newAddresses;
-                    newAddresses.resize(50);
-                    for (auto& addr : newAddresses)
-                    {
-                        addr.m_label = "contact label";
-                        addr.m_category = "test category";
-                        addr.m_createTime = beam::getTimestamp();
-                        addr.m_duration = std::rand();
-                        addr.m_OwnID = std::rand();
-                        addr.m_walletID = storage::generateWalletIDFromIndex(keyKeeper, 32);
-                    }
-
-                    for (auto& addr : newAddresses)
-                    {
-                        client.getAsync()->saveAddress(addr, true);
-                    }
-                    timer->start(1500, false, [mainReactor]() { mainReactor->stop(); });
+                    addr.m_label = "contact label";
+                    addr.m_category = "test category";
+                    addr.m_createTime = beam::getTimestamp();
+                    addr.m_duration = std::rand();
+                    addr.m_OwnID = std::rand();
+                    addr.m_walletID = storage::generateWalletIDFromIndex(walletEnv->m_keyKeeper, 32);
                 }
+
+                for (auto& addr : newAddresses)
+                {
+                    client->getAsync()->saveAddress(addr, true);
+                }
+                timer->start(1500, false, [walletEnv]() { walletEnv->m_reactor->stop(); });
             });
         startEvent->post();
 
@@ -2431,7 +2438,7 @@ int main()
     TestConvertions();
     TestTxParameters();
 
-    //TestClient();
+    // TestClient();
     TestWalletID();
 
 	TestNegotiation();

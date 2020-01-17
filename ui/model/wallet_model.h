@@ -17,6 +17,7 @@
 #include <QObject>
 
 #include "wallet/client/wallet_client.h"
+#include "wallet/client/wallet_env.h"
 #include <set>
 
 class WalletModel
@@ -28,7 +29,11 @@ public:
 
     using Ptr = std::shared_ptr<WalletModel>;
 
-    WalletModel(beam::wallet::IWalletDB::Ptr walletDB, beam::wallet::IPrivateKeyKeeper::Ptr keyKeeper, const std::string& nodeAddr, beam::io::Reactor::Ptr reactor);
+    WalletModel(beam::io::Reactor::Ptr reactor,
+                beam::wallet::IWalletDB::Ptr walletDB,
+                beam::wallet::IPrivateKeyKeeper::Ptr keyKeeper,
+                beam::wallet::NodeNetwork::Ptr nodeNetwork,
+                beam::wallet::Wallet::Ptr wallet);
     ~WalletModel() override;
 
     QString GetErrorString(beam::wallet::ErrorType type);

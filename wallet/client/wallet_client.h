@@ -26,6 +26,7 @@
 #ifdef BEAM_ATOMIC_SWAP_SUPPORT
 #include "wallet/client/extensions/offers_board/swap_offers_board.h"
 #endif
+#include "wallet/client/changes_collector.h"
 
 #include <thread>
 #include <atomic>
@@ -60,18 +61,22 @@ namespace beam::wallet
         , private INodeConnectionObserver
     {
     public:
-        WalletClient(IWalletDB::Ptr walletDB, const std::string& nodeAddr, io::Reactor::Ptr reactor, IPrivateKeyKeeper::Ptr keyKeeper);
+        WalletClient(io::Reactor::Ptr reactor,
+                     IWalletDB::Ptr walletDB,
+                     IPrivateKeyKeeper::Ptr keyKeeper,
+                     NodeNetwork::Ptr nodeNetwork,
+                     Wallet::Ptr wallet);
         virtual ~WalletClient();
 
-        void start(std::shared_ptr<std::unordered_map<TxType, BaseTransaction::Creator::Ptr>> txCreators = nullptr);
-
-        IWalletModelAsync::Ptr getAsync();
+        void start();
         std::string getNodeAddress() const;
         std::string exportOwnerKey(const beam::SecString& pass) const;
         bool isRunning() const;
         bool isFork1() const;
         size_t getUnsafeActiveTransactionsCount() const;
         bool isConnectionTrusted() const;
+
+        IWalletModelAsync::Ptr getAsync();
 
         /// INodeConnectionObserver implementation
         void onNodeConnectionFailed(const proto::NodeConnection::DisconnectReason&) override;
@@ -166,23 +171,24 @@ namespace beam::wallet
         void updateClientTxState();
         void updateConnectionTrust(bool trustedConnected);
         bool isConnected() const;
-    private:
 
-        std::shared_ptr<std::thread> m_thread;
-        IWalletDB::Ptr m_walletDB;
+    private:
+        // externally defined
         io::Reactor::Ptr m_reactor;
-        IWalletModelAsync::Ptr m_async;
-        std::weak_ptr<NodeNetwork> m_nodeNetwork;
-        std::weak_ptr<IWalletMessageEndpoint> m_walletNetwork;
-        std::weak_ptr<Wallet> m_wallet;
+        IWalletDB::Ptr m_walletDB;
+        IPrivateKeyKeeper::Ptr m_keyKeeper;
+        NodeNetwork::Ptr m_nodeNetwork;
+        Wallet::Ptr m_wallet;
 #ifdef BEAM_ATOMIC_SWAP_SUPPORT
-        std::weak_ptr<SwapOffersBoard> m_offersBulletinBoard;
+        // TODO move to WalletModel
+        std::shared_ptr<SwapOffersBoard> m_offersBulletinBoard;
 #endif
+        // internal
+        IWalletModelAsync::Ptr m_async;
+        std::shared_ptr<std::thread> m_thread;
         uint32_t m_connectedNodesCount;
         uint32_t m_trustedConnectionCount;
         boost::optional<ErrorType> m_walletError;
-        std::string m_nodeAddrStr;
-        IPrivateKeyKeeper::Ptr m_keyKeeper;
 
         struct CoinKey
         {

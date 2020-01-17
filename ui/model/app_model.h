@@ -87,6 +87,7 @@ private:
     beam::bitcoin::IBridgeHolder::Ptr m_qtumBridgeHolder;
 
     WalletModel::Ptr m_wallet;
+    std::unique_ptr<beam::wallet::WalletEnvironment> m_walletEnv;
     beam::wallet::IPrivateKeyKeeper::Ptr m_keyKeeper;
     NodeModel m_nodeModel;
     WalletSettings& m_settings;

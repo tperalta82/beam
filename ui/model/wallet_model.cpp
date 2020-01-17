@@ -24,8 +24,12 @@ using namespace beam::wallet;
 using namespace beam::io;
 using namespace std;
 
-WalletModel::WalletModel(IWalletDB::Ptr walletDB, IPrivateKeyKeeper::Ptr keyKeeper, const std::string& nodeAddr, beam::io::Reactor::Ptr reactor)
-    : WalletClient(walletDB, nodeAddr, reactor, keyKeeper)
+WalletModel::WalletModel(beam::io::Reactor::Ptr reactor,
+                         beam::wallet::IWalletDB::Ptr walletDB,
+                         beam::wallet::IPrivateKeyKeeper::Ptr keyKeeper,
+                         beam::wallet::NodeNetwork::Ptr nodeNetwork,
+                         beam::wallet::Wallet::Ptr wallet)
+    : WalletClient(reactor, walletDB, keyKeeper, nodeNetwork, wallet)
 {
     qRegisterMetaType<beam::ByteBuffer>("beam::ByteBuffer");
     qRegisterMetaType<beam::wallet::WalletStatus>("beam::wallet::WalletStatus");

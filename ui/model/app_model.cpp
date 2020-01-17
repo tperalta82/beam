@@ -24,6 +24,7 @@
 #include "wallet/transactions/swaps/bridges/bitcoin/bitcoin.h"
 #include "wallet/transactions/swaps/bridges/litecoin/litecoin.h"
 #include "wallet/transactions/swaps/bridges/qtum/qtum.h"
+#include "wallet/client/wallet_creator.h"
 
 #include "keykeeper/local_private_key_keeper.h"
 
@@ -204,6 +205,7 @@ void AppModel::onResetWallet()
     assert(m_db);
 
     m_wallet.reset();
+    // m_walletEnv.reset();
     m_keyKeeper.reset();
     m_bitcoinClient.reset();
     m_litecoinClient.reset();
@@ -227,46 +229,7 @@ void AppModel::onResetWallet()
 void AppModel::startWallet()
 {
     assert(!m_wallet->isRunning());
-
-    auto additionalTxCreators = std::make_shared<std::unordered_map<TxType, BaseTransaction::Creator::Ptr>>();
-    auto swapTransactionCreator = std::make_shared<beam::wallet::AtomicSwapTransaction::Creator>(m_db);
-
-    if (auto btcClient = getBitcoinClient(); btcClient)
-    {
-        auto bitcoinBridgeCreator = [bridgeHolder = m_btcBridgeHolder, reactor = m_walletReactor, settingsProvider = btcClient]() -> bitcoin::IBridge::Ptr
-        {
-            return bridgeHolder->Get(*reactor, *settingsProvider);
-        };
-
-        auto btcSecondSideFactory = beam::wallet::MakeSecondSideFactory<BitcoinSide, bitcoin::IBridge, bitcoin::ISettingsProvider>(bitcoinBridgeCreator, *btcClient);
-        swapTransactionCreator->RegisterFactory(AtomicSwapCoin::Bitcoin, btcSecondSideFactory);
-    }
-
-    if (auto ltcClient = getLitecoinClient(); ltcClient)
-    {
-        auto litecoinBridgeCreator = [bridgeHolder = m_ltcBridgeHolder, reactor = m_walletReactor, settingsProvider = ltcClient]() -> bitcoin::IBridge::Ptr
-        {
-            return bridgeHolder->Get(*reactor, *settingsProvider);
-        };
-
-        auto ltcSecondSideFactory = beam::wallet::MakeSecondSideFactory<LitecoinSide, bitcoin::IBridge, litecoin::ISettingsProvider>(litecoinBridgeCreator, *ltcClient);
-        swapTransactionCreator->RegisterFactory(AtomicSwapCoin::Litecoin, ltcSecondSideFactory);
-    }
-
-    if (auto qtumClient = getQtumClient(); qtumClient)
-    {
-        auto qtumBridgeCreator = [bridgeHolder = m_qtumBridgeHolder, reactor = m_walletReactor, settingsProvider = qtumClient]() -> bitcoin::IBridge::Ptr
-        {
-            return bridgeHolder->Get(*reactor, *settingsProvider);
-        };
-
-        auto qtumSecondSideFactory = wallet::MakeSecondSideFactory<QtumSide, qtum::Electrum, qtum::ISettingsProvider>(qtumBridgeCreator, *qtumClient);
-        swapTransactionCreator->RegisterFactory(AtomicSwapCoin::Qtum, qtumSecondSideFactory);
-    }
-
-    additionalTxCreators->emplace(TxType::AtomicSwap, swapTransactionCreator);
-
-    m_wallet->start(additionalTxCreators);
+    m_wallet->start();
 }
 
 void AppModel::applySettingsChanges()
@@ -354,7 +317,50 @@ void AppModel::start()
     InitLtcClient();
     InitQtumClient();
 
-    m_wallet = std::make_shared<WalletModel>(m_db, m_keyKeeper, nodeAddrStr, m_walletReactor);
+    m_walletEnv = std::make_unique<WalletEnvironment>(m_walletReactor, m_db, m_keyKeeper, nodeAddrStr);
+
+    // TODO consider move this to wallet creator
+    {
+        auto additionalTxCreators = std::make_shared<std::unordered_map<TxType, BaseTransaction::Creator::Ptr>>();
+        auto swapTransactionCreator = std::make_shared<beam::wallet::AtomicSwapTransaction::Creator>(m_db);
+
+        if (auto btcClient = getBitcoinClient(); btcClient)
+        {
+            auto bitcoinBridgeCreator = [bridgeHolder = m_btcBridgeHolder, reactor = m_walletReactor, settingsProvider = btcClient]() -> bitcoin::IBridge::Ptr
+            {
+                return bridgeHolder->Get(*reactor, *settingsProvider);
+            };
+
+            auto btcSecondSideFactory = beam::wallet::MakeSecondSideFactory<BitcoinSide, bitcoin::IBridge, bitcoin::ISettingsProvider>(bitcoinBridgeCreator, *btcClient);
+            swapTransactionCreator->RegisterFactory(AtomicSwapCoin::Bitcoin, btcSecondSideFactory);
+        }
+
+        if (auto ltcClient = getLitecoinClient(); ltcClient)
+        {
+            auto litecoinBridgeCreator = [bridgeHolder = m_ltcBridgeHolder, reactor = m_walletReactor, settingsProvider = ltcClient]() -> bitcoin::IBridge::Ptr
+            {
+                return bridgeHolder->Get(*reactor, *settingsProvider);
+            };
+
+            auto ltcSecondSideFactory = beam::wallet::MakeSecondSideFactory<LitecoinSide, bitcoin::IBridge, litecoin::ISettingsProvider>(litecoinBridgeCreator, *ltcClient);
+            swapTransactionCreator->RegisterFactory(AtomicSwapCoin::Litecoin, ltcSecondSideFactory);
+        }
+
+        if (auto qtumClient = getQtumClient(); qtumClient)
+        {
+            auto qtumBridgeCreator = [bridgeHolder = m_qtumBridgeHolder, reactor = m_walletReactor, settingsProvider = qtumClient]() -> bitcoin::IBridge::Ptr
+            {
+                return bridgeHolder->Get(*reactor, *settingsProvider);
+            };
+
+            auto qtumSecondSideFactory = wallet::MakeSecondSideFactory<QtumSide, qtum::Electrum, qtum::ISettingsProvider>(qtumBridgeCreator, *qtumClient);
+            swapTransactionCreator->RegisterFactory(AtomicSwapCoin::Qtum, qtumSecondSideFactory);
+        }
+
+        additionalTxCreators->emplace(TxType::AtomicSwap, swapTransactionCreator);
+
+        m_wallet = WalletCreator::createWallet<WalletModel>(*m_walletEnv, additionalTxCreators);
+    }
 
     if (m_settings.getRunLocalNode())
     {
