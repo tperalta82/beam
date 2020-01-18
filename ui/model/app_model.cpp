@@ -205,7 +205,7 @@ void AppModel::onResetWallet()
     assert(m_db);
 
     m_wallet.reset();
-    // m_walletEnv.reset();
+    m_walletEnv.reset();
     m_keyKeeper.reset();
     m_bitcoinClient.reset();
     m_litecoinClient.reset();
@@ -313,6 +313,7 @@ void AppModel::start()
         nodeAddrStr = nodeAddr.str();
     }
 
+    // TODO consider move this to wallet creator
     InitBtcClient();
     InitLtcClient();
     InitQtumClient();

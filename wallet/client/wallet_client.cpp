@@ -527,6 +527,11 @@ namespace beam::wallet
     }
 
 #ifdef BEAM_ATOMIC_SWAP_SUPPORT
+    void WalletClient::attachSwapOfferBoard(SwapOffersBoard::Ptr offersBoard)
+    {
+        m_offersBulletinBoard = offersBoard;
+    }
+
     void WalletClient::getSwapOffers()
     {
         onSwapOffersChanged(ChangeAction::Reset, m_offersBulletinBoard->getOffersList());

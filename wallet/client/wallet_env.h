@@ -44,17 +44,17 @@ namespace beam::wallet
         IPrivateKeyKeeper::Ptr m_keyKeeper;
         const std::string m_nodeAddress;
         // created with WalletCreator
-        std::shared_ptr<Wallet> m_wallet;
-        std::shared_ptr<NodeNetwork> m_nodeNetwork;
-        std::shared_ptr<IWalletMessageEndpoint> m_walletNetwork;
+        Wallet::Ptr m_wallet;
+        NodeNetwork::Ptr m_nodeNetwork;
+        IWalletMessageEndpoint::Ptr m_walletNetwork;
         std::shared_ptr<WalletClient> m_walletClient;
         // scoped subscribers
         std::unique_ptr<WalletSubscriber> m_walletObserver;
         std::unique_ptr<NodeNetworkSubscriber> m_nodeNetworkObserver;
-        // TODO move from here
 #ifdef BEAM_ATOMIC_SWAP_SUPPORT
+    public:
+        SwapOffersBoard::Ptr m_offersBulletinBoard;
         std::shared_ptr<OfferBoardProtocolHandler> m_protocolHandler;
-        std::shared_ptr<SwapOffersBoard> m_offersBulletinBoard;
         std::unique_ptr<WalletDbSubscriber> m_walletDbSubscriber;
         std::unique_ptr<SwapOffersBoardSubscriber> m_swapOffersBoardSubscriber;
 #endif

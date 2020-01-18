@@ -68,6 +68,7 @@ namespace beam::wallet
                      Wallet::Ptr wallet);
         virtual ~WalletClient();
 
+        IWalletModelAsync::Ptr getAsync();
         void start();
         std::string getNodeAddress() const;
         std::string exportOwnerKey(const beam::SecString& pass) const;
@@ -76,13 +77,12 @@ namespace beam::wallet
         size_t getUnsafeActiveTransactionsCount() const;
         bool isConnectionTrusted() const;
 
-        IWalletModelAsync::Ptr getAsync();
-
-        /// INodeConnectionObserver implementation
-        void onNodeConnectionFailed(const proto::NodeConnection::DisconnectReason&) override;
-        void onNodeConnectedStatusChanged(bool isNodeConnected) override;
+#ifdef BEAM_ATOMIC_SWAP_SUPPORT
+        void attachSwapOfferBoard(SwapOffersBoard::Ptr);
+#endif
 
     protected:
+        // TODO: consider refactoring Wallet Model from Wallet Client inheritance to association and async observer pattern.
         // Call this before derived class is destructed to ensure
         // that no virtual function calls below will result in purecall
         void stopReactor();
@@ -164,6 +164,10 @@ namespace beam::wallet
         // implement IWalletDB::IRecoveryProgress
         bool OnProgress(uint64_t done, uint64_t total) override;
 
+        /// implement INodeConnectionObserver
+        void onNodeConnectionFailed(const proto::NodeConnection::DisconnectReason&) override;
+        void onNodeConnectedStatusChanged(bool isNodeConnected) override;
+
         WalletStatus getStatus() const;
         std::vector<Coin> getUtxos() const;
 
@@ -180,10 +184,9 @@ namespace beam::wallet
         NodeNetwork::Ptr m_nodeNetwork;
         Wallet::Ptr m_wallet;
 #ifdef BEAM_ATOMIC_SWAP_SUPPORT
-        // TODO move to WalletModel
-        std::shared_ptr<SwapOffersBoard> m_offersBulletinBoard;
+        SwapOffersBoard::Ptr m_offersBulletinBoard;
 #endif
-        // internal
+        // internally used
         IWalletModelAsync::Ptr m_async;
         std::shared_ptr<std::thread> m_thread;
         uint32_t m_connectedNodesCount;

@@ -18,14 +18,19 @@
 
 namespace beam::wallet
 {
+    // TODO: try combine WalletCreator with WalletEnvironment
     struct WalletCreator
     {
         /// Create specified WalletClient implementation on WalletEnvironment
         template <class WalletClientType>
         static std::shared_ptr<WalletClientType> createWallet(WalletEnvironment& env, std::shared_ptr<std::unordered_map<TxType, BaseTransaction::Creator::Ptr>> txCreators = std::shared_ptr<std::unordered_map<TxType, BaseTransaction::Creator::Ptr>>())
         {
+            io::Reactor::Scope scope(*env.m_reactor);
+
             env.m_wallet = std::make_shared<Wallet>(env.m_walletDB, env.m_keyKeeper);
             env.m_nodeNetwork = std::make_shared<NodeNetwork>(*env.m_wallet, env.m_nodeAddress);
+
+            // BaseMessageEndpoint .ctor needs io::Reactor::get_Current() for m_AddressExpirationTimer
             env.m_walletNetwork = std::make_shared<WalletNetworkViaBbs>(*env.m_wallet, env.m_nodeNetwork, env.m_walletDB, env.m_keyKeeper);
 
             env.m_wallet->SetNodeEndpoint(env.m_nodeNetwork);
@@ -41,8 +46,8 @@ namespace beam::wallet
             auto walletClient = std::make_shared<WalletClientType>(env.m_reactor, env.m_walletDB, env.m_keyKeeper, env.m_nodeNetwork, env.m_wallet);
             env.m_walletClient = std::shared_ptr<WalletClient>(walletClient);
 
-            // WalletEnvironment stores shared_ptr to WalletClient to prevent it to be destructed before observers
-            // and prevent running callbacks on destroyed object ptr.
+            // WalletEnvironment stores shared_ptr<WalletClient> to prevent destruction
+            // before it's observers. Thus prevent running callbacks on destroyed WalletClient*.
             env.m_walletObserver = make_unique<WalletSubscriber>(reinterpret_cast<IWalletObserver*>(env.m_walletClient.get()), env.m_wallet);
             env.m_nodeNetworkObserver = make_unique<NodeNetworkSubscriber>(reinterpret_cast<INodeConnectionObserver*>(env.m_walletClient.get()), env.m_nodeNetwork);
 
@@ -52,6 +57,8 @@ namespace beam::wallet
 
             env.m_walletDbSubscriber = make_unique<WalletDbSubscriber>(static_cast<IWalletDbObserver*>(env.m_offersBulletinBoard.get()), env.m_walletDB);
             env.m_swapOffersBoardSubscriber = make_unique<SwapOffersBoardSubscriber>(reinterpret_cast<ISwapOffersObserver*>(env.m_walletClient.get()), env.m_offersBulletinBoard);
+
+            walletClient->attachSwapOfferBoard(env.m_offersBulletinBoard);
 #endif
 
             return walletClient;
