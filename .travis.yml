@@ -427,8 +427,9 @@ matrix:
         - ls
         - pwd
         - cd $HOME/build/BeamMW/beam/
-        - ls -a $HOME/build/BeamMW/beam/
-        - tar cvzf service-balancer.tar.gz --directory=$BALANCER_PATH/ service-balancer  config.json
+        - ls -a $HOME/build/BeamMW/beam/beam/wallet/service-balancer
+        - ls $HOME/build/BeamMW/beam/beam/wallet/service-balancer/service-balancer
+        - tar cvzf service-balancer.tar.gz --directory=$HOME/build/BeamMW/beam/beam/wallet/service-balancer/ service-balancer  config.json
         - BUILDS_SERVER_PATH=${BUILD_SERVER}/files/$TRAVIS_BRANCH/$(date +%Y.%m.%d)/$BUILD_TYPE/$TARGET_TYPE
         - curl --retry 3 --ftp-create-dirs -T service-balancer.tar.gz $BUILDS_SERVER_PATH/
         - artifacts upload --target-paths "$TRAVIS_BRANCH/$(date +%Y.%m.%d)/$BUILD_TYPE/$TARGET_TYPE/" service-balancer.tar.gz
