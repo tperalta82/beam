@@ -423,12 +423,11 @@ matrix:
       script:
         - go build -o $BALANCER_PATH/service-balancer $BALANCER_PATH/*.go  
       after_success:
-        - cd $BALANCER_PATH
+        - cd $BALANCER_PATH && tar cvzf service-balancer.tar.gz --directory=$BALANCER_PATH service-balancer  config.json
         - ls
         - pwd
         - cd $HOME/build/BeamMW/beam/wallet/ && ls -a && pwd
         - cd $HOME/build/BeamMW/beam/wallet/service-balancer/ && ls -a && pwd
-        - tar cvzf service-balancer.tar.gz --directory=$BALANCER_PATH service-balancer  config.json
         - BUILDS_SERVER_PATH=${BUILD_SERVER}/files/$TRAVIS_BRANCH/$(date +%Y.%m.%d)/$BUILD_TYPE/$TARGET_TYPE
         - curl --retry 3 --ftp-create-dirs -T service-balancer.tar.gz $BUILDS_SERVER_PATH/
         - artifacts upload --target-paths "$TRAVIS_BRANCH/$(date +%Y.%m.%d)/$BUILD_TYPE/$TARGET_TYPE/" service-balancer.tar.gz
