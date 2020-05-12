@@ -655,7 +655,7 @@ Result Reactor::tcp_connect(
  *  That is why bind is not mplemented here.
  */
 Result Reactor::tcp_connect_with_proxy(
-    Address destAddr,
+    const std::string& destAddrURI,
     Address proxyAddr,
     uint64_t tag,
     const ConnectCallback& callback,
@@ -666,11 +666,11 @@ Result Reactor::tcp_connect_with_proxy(
     // timeoutMsec = proxyServerConnectionTO + proxyToDestinationConnectionTO + proxyServerResponseTO
     // now only proxyServerConnectionTO is set
     assert(callback);
-    assert(!destAddr.empty());
+    assert(!destAddrURI.empty());
     assert(!proxyAddr.empty());
     assert(_tcpConnectors->is_tag_free(tag));
 
-    if (!callback || destAddr.empty() || !_tcpConnectors->is_tag_free(tag)) {
+    if (!callback || destAddrURI.empty() || !_tcpConnectors->is_tag_free(tag)) {
         return make_unexpected(EC_EINVAL);
     }
 
@@ -682,7 +682,7 @@ Result Reactor::tcp_connect_with_proxy(
     }
 
     ConnectCallback on_tcp_connect = _proxyConnector->
-        create_connection(tag, destAddr, callback, timeoutMsec, tlsConnect);
+        create_connection(tag, destAddrURI, callback, timeoutMsec, tlsConnect);
     Result res = _tcpConnectors->tcp_connect((uv_tcp_t*)h, proxyAddr, tag, on_tcp_connect, timeoutMsec, false);
     if (!res) {
         async_close(h);

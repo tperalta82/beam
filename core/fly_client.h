@@ -135,6 +135,7 @@ namespace proto {
 
 			struct Config {
 				std::vector<io::Address> m_vNodes;
+				std::vector<std::string> m_vNodesURI;
 				uint32_t m_PollPeriod_ms = 0; // set to 0 to keep connection. Anyway poll period would be no less than the expected rate of blocks
 				uint32_t m_ReconnectTimeout_ms = 5000;
                 uint32_t m_CloseConnectionDelay_ms = 1000;
@@ -186,6 +187,7 @@ namespace proto {
 				void ResetAll();
 
 				io::Address m_Addr;
+				std::string m_AddrURI;
 				PeerID m_NodeID;
 
 				// most recent tip of the Node, according to which all the proofs are interpreted

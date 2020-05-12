@@ -40,7 +40,7 @@ public:
      * @return callback functor to be executed on tcp connect to proxy server.
      */
     OnConnect create_connection(uint64_t tag,   // unique identifier
-                                Address destination,
+                                const std::string& destinationURI,
                                 const OnConnect& onProxyEstablish,
                                 int timeoutMsec,
                                 bool tlsConnect);
@@ -70,7 +70,7 @@ private:
     struct ProxyConnectRequest {
         // using Ptr = std::unique_ptr<ProxyConnectRequest>;
         uint64_t tag;
-        beam::io::Address destination;
+        std::string destinationURI; // TODO: #1198 std::string destinationURI - has to be replaced with fixed size object.
         OnConnect on_connection_establish;
         OnReply on_proxy_reply;
         int timeoutMsec;
@@ -138,7 +138,7 @@ struct Socks5_Protocol {
 
     static std::array<uint8_t,3> makeAuthRequest(AuthMethod method);
     static bool parseAuthResp(void* data, AuthMethod& outMethod);
-    static std::array<uint8_t,10> makeRequest(const Address& addr, Command cmd);
+    static std::vector<uint8_t> makeRequest(const std::string& addrURI, Command cmd);
     static Reply parseReply(void* data);
 
 };

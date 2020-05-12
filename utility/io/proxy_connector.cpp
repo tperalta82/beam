@@ -43,7 +43,7 @@ ProxyConnector::~ProxyConnector() {
  */
 ProxyConnector::OnConnect ProxyConnector::create_connection(
         uint64_t tag,
-        Address destination,
+        const std::string& destinationURI,
         const OnConnect& on_proxy_establish,
         int timeoutMsec,
         bool isTls) {
@@ -52,7 +52,7 @@ ProxyConnector::OnConnect ProxyConnector::create_connection(
     
     ProxyConnectRequest* request_ptr = _connectRequestsPool.alloc();
     request_ptr->tag = tag;
-    request_ptr->destination = destination;
+    request_ptr->destinationURI = destinationURI;
     request_ptr->on_connection_establish = OnConnect(on_proxy_establish);
     request_ptr->on_proxy_reply = OnReply();
     request_ptr->timeoutMsec = timeoutMsec;
@@ -186,7 +186,7 @@ void ProxyConnector::send_connect_request(uint64_t tag) {
     _connectRequests[tag]->on_proxy_reply = &ProxyConnector::on_connect_resp;
     
     auto conn_req = Socks5_Protocol::makeRequest(
-        _connectRequests[tag]->destination,
+        _connectRequests[tag]->destinationURI,
         Socks5_Protocol::Command::CONNECT);
 
     // Send connection request to proxy server
@@ -266,22 +266,38 @@ bool Socks5_Protocol::parseAuthResp(void* data, AuthMethod& outMethod) {
     return true;
 }
 
-std::array<uint8_t,10> Socks5_Protocol::makeRequest(const Address& addr, Command cmd) {
-    const uint32_t ip = addr.ip();
-    const uint16_t port = addr.port();
-    return std::array<uint8_t,10> {
+std::vector<uint8_t> Socks5_Protocol::makeRequest(const std::string& addrURI, Command cmd) {
+    std::vector<uint8_t> request = {
         ProtoVersion,
         static_cast<uint8_t>(cmd),
         Reserved,
-        static_cast<uint8_t>(AddrType::IP_V4),
-        static_cast<uint8_t>(ip >> 24),
-        static_cast<uint8_t>((ip >> 16) & 0xFF),
-        static_cast<uint8_t>((ip >> 8) & 0xFF),
-        static_cast<uint8_t>(ip & 0xFF),
-        static_cast<uint8_t>((port >> 8) & 0xFF),
-        static_cast<uint8_t>(port & 0xFF)
+        static_cast<uint8_t>(AddrType::DOMAINNAME)
     };
+    assert(addrURI.size() <= std::numeric_limits<uint8_t>::max());
+    request.push_back(static_cast<uint8_t>(addrURI.size()));
+    for (const auto s : addrURI)
+    {
+        request.push_back(s);
+    }
+    return request;
 }
+
+// std::array<uint8_t,10> Socks5_Protocol::makeRequest(const Address& addr, Command cmd) {
+//     const uint32_t ip = addr.ip();
+//     const uint16_t port = addr.port();
+//     return std::array<uint8_t,10> {
+//         ProtoVersion,
+//         static_cast<uint8_t>(cmd),
+//         Reserved,
+//         static_cast<uint8_t>(AddrType::IP_V4),
+//         static_cast<uint8_t>(ip >> 24),
+//         static_cast<uint8_t>((ip >> 16) & 0xFF),
+//         static_cast<uint8_t>((ip >> 8) & 0xFF),
+//         static_cast<uint8_t>(ip & 0xFF),
+//         static_cast<uint8_t>((port >> 8) & 0xFF),
+//         static_cast<uint8_t>(port & 0xFF)
+//     };
+// }
 
 Socks5_Protocol::Reply Socks5_Protocol::parseReply(void* data) {
     uint8_t* resp = static_cast<uint8_t*>(data);

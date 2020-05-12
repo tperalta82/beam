@@ -2221,15 +2221,18 @@ namespace
             return nullptr;
         }
 
+        bool useProxy = vm[cli::PROXY_USE].as<bool>();
+
         string nodeURI = vm[cli::NODE_ADDR].as<string>();
         io::Address nodeAddress;
-        if (!nodeAddress.resolve(nodeURI.c_str()))
+        if (!useProxy && !nodeAddress.resolve(nodeURI.c_str()))
         {
             LOG_ERROR() << boost::format(kErrorNodeAddrUnresolved) % nodeURI;
             return nullptr;
         }
 
         auto nnet = make_shared<CliNodeConnection>(fc);
+        nnet->m_Cfg.m_UseProxy = useProxy;
         nnet->m_Cfg.m_PollPeriod_ms =
             vm[cli::NODE_POLL_PERIOD].as<Nonnegative<uint32_t>>().value;
         if (nnet->m_Cfg.m_PollPeriod_ms)
@@ -2252,10 +2255,12 @@ namespace
             LOG_WARNING() << boost::format(kErrorNodePoolPeriodTooMuch)
                           % uint32_t(responceTime_s / 3600);
         }
-        nnet->m_Cfg.m_vNodes.push_back(nodeAddress);
-        nnet->m_Cfg.m_UseProxy = vm[cli::PROXY_USE].as<bool>();
+
         if (nnet->m_Cfg.m_UseProxy)
         {
+            nnet->m_Cfg.m_vNodesURI.push_back(nodeURI);
+            // #1198 deside how to pass Port using URI string
+
             string proxyURI = vm[cli::PROXY_ADDRESS].as<string>();
             io::Address proxyAddr;
             if (!proxyAddr.resolve(proxyURI.c_str()))
@@ -2265,6 +2270,11 @@ namespace
             }
             nnet->m_Cfg.m_ProxyAddr = proxyAddr;
         }
+        else
+        {
+            nnet->m_Cfg.m_vNodes.push_back(nodeAddress);
+        }
+        
         nnet->Connect();
 
         return nnet;

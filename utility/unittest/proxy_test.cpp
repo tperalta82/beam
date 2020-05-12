@@ -100,7 +100,14 @@ private:
 	void onAuthState(uint8_t* data, size_t size) {
 		// 123.45.67.89 = 0x7B2D4359
 		// 80 = 0x50
-		std::array<uint8_t,10> referenceAuthReq = {0x05, 0x01, 0x00, 0x01, 0x7B, 0x2D, 0x43, 0x59, 0x00, 0x50};
+
+		// TODO: #1198 test fails here because of ProxyConnector::destinationURI corruption.
+		// ProxyConnector is allocated as static size structure. And std::string can't be used there.
+		// std::string destinationURI - has to be replaced with fixed size object.
+
+		LOG_DEBUG() << "data: " << to_hex(data,size);
+		std::vector<uint8_t> referenceAuthReq = {0x05, 0x01, 0x00, 0x03, 12, '1', '2', '3', '.', '4', '5', '.', '6', '7', '.', '8', '9'};
+
 		if (!std::equal(referenceAuthReq.cbegin(), referenceAuthReq.cend(), data))
 			assert(false);
 
@@ -129,9 +136,8 @@ private:
 void proxy_test() {
 	Reactor::Ptr reactor = Reactor::create();
 
-	Address destAddr, proxyAddr;
-	destAddr.resolve(testDomain);
-	destAddr.port(testPort);
+	Address proxyAddr;
+	std::string destinationURI(testDomain);
 	proxyAddr.resolve(dummyProxyServerIp);
 	proxyAddr.port(dummyProxyServerPort);
 
@@ -146,7 +152,7 @@ void proxy_test() {
 		int connTO = 2000;
 		auto timeStart = std::time(nullptr);
 		reactor->tcp_connect_with_proxy(
-			destAddr,
+			destinationURI,
 			Address(0x7f000001, 12345),	// intentionally corrupted port
 			1,
 			[&timeStart, &connTO, &connTimeoutCalled](uint64_t tag, unique_ptr<TcpStream>&& newStream, ErrorCode status) {
@@ -207,7 +213,7 @@ void proxy_test() {
 	// Successful connection testcase
 	TcpStream::Ptr clientStream;
 	reactor->tcp_connect_with_proxy(
-		destAddr,
+		destinationURI,
 		proxyAddr,
 		2,
 		[&successfulCalled, &clientStream](uint64_t tag, unique_ptr<TcpStream>&& newStream, ErrorCode status) {
@@ -239,7 +245,7 @@ void proxy_test() {
 
 	// Connection error in socks protocol
 	reactor->tcp_connect_with_proxy(
-		destAddr,
+		destinationURI,
 		proxyAddr,
 		3,
 		[&failedCalled](uint64_t tag, unique_ptr<TcpStream>&& newStream, ErrorCode status) {
@@ -253,7 +259,7 @@ void proxy_test() {
 
 	// Proxy reply timeout testcase
 	reactor->tcp_connect_with_proxy(
-		destAddr,
+		destinationURI,
 		proxyAddr,
 		4,
 		[&repplyTimeoutCalled](uint64_t tag, unique_ptr<TcpStream>&& newStream, ErrorCode status) {

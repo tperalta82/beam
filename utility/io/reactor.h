@@ -72,7 +72,7 @@ public:
      * @proxyAddr proxy server address
      */
     Result tcp_connect_with_proxy(
-        Address destAddr,
+        const std::string& destAddrURI,
         Address proxyAddr,
         uint64_t tag,
         const ConnectCallback& callback,
