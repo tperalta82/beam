@@ -51,8 +51,9 @@ namespace beam
         virtual void on_protocol_error(uint64_t fromStream, ProtocolError error) override;
         virtual void on_connection_error(uint64_t fromStream, io::ErrorCode errorCode) override; /// unused
 
-        static constexpr std::array<uint8_t, 3> m_ver_1 = { 0, 0, 1 };  // version used before 2nd fork: has custom deserialization and signature hash for SwapOffersBoard. TODO: dh remove after 2 fork.
-        static constexpr std::array<uint8_t, 3> m_ver_2 = { 0, 0, 2 };  // verison after 2nd fork: will has common deserialization and signatures type for all BBS-based broadcasting.
+        static constexpr std::array<uint8_t, 3> m_ver_1 = { 0, 0, 1 };  // version used before 2nd fork: only for SwapOffersBoard. Has custom deserialization and signature hash for SwapOffersBoard. TODO: dh remove after 2 fork.
+        static constexpr std::array<uint8_t, 3> m_ver_2 = { 0, 0, 2 };  // verison after 2nd fork: will has common deserialization and signatures type for all BBS-based broadcasting. SwapOffersBoard use it only after 2 fork.
+        static constexpr std::array<uint8_t, 3> m_ver_3 = { 0, 0, 3 };  // new version used only for SoftwareUpdates messages.
 
     private:
         static constexpr size_t m_maxMessageTypes = 3;
@@ -72,8 +73,10 @@ namespace beam
 
         Protocol m_protocol_old;    // TODO: dh remove after 2 fork. Used only with SwapOffersBoard
         Protocol m_protocol;
+        Protocol m_protocol_3;
         MsgReader m_msgReader_old;  // TODO: dh remove after 2 fork.
         MsgReader m_msgReader;
+        MsgReader m_msgReader_3;
         Timestamp m_lastTimestamp;
         std::map<BroadcastContentType, IBroadcastListener*> m_listeners;
     };
