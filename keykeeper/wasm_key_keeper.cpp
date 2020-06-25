@@ -322,6 +322,14 @@ private:
     {
         using LocalPrivateKeyKeeperStd::LocalPrivateKeyKeeperStd;
 
+        virtual void Regenerate(Slot::Type iSlot) override
+        {
+            // instead of regenerating the slot - just delete it
+            State::UsedMap::iterator it = m_State.m_Used.find(iSlot);
+            if (m_State.m_Used.end() != it)
+                m_State.m_Used.erase(it);
+        }
+
         bool IsTrustless() override { return true; }
 
         std::string GetWalletID() const
