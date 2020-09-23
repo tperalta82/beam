@@ -17,7 +17,6 @@
 #include "pow/external_pow.h"
 #include "utility/logger.h"
 #include <boost/filesystem.hpp>
-
 namespace
 {
     constexpr int kVerificationThreadsMaxAvailable = -1;
@@ -126,13 +125,18 @@ void NodeClient::setOwnerKey(beam::Key::IPKdf::Ptr key)
 
 void NodeClient::startNode()
 {
+    std::unique_lock<std::mutex> lock(m_startMutex);
     m_shouldStartNode = true;
-    m_waiting.notify_all();
+    m_waiting.notify_one();
 }
 
 void NodeClient::stopNode()
 {
-    m_shouldStartNode = false;
+    {
+        std::unique_lock<std::mutex> lock(m_startMutex);
+        m_shouldStartNode = false;
+        m_waiting.notify_one();
+    }
     auto reactor = m_reactor.lock();
     if (reactor)
     {
@@ -152,26 +156,20 @@ void NodeClient::start()
             m_reactor = reactor;// store weak ref
             io::Reactor::Scope scope(*reactor);
 
-            std::mutex localMutex;
-
             while (!m_shouldTerminateModel)
             {
-                if (!m_shouldStartNode)
                 {
-                    std::unique_lock<std::mutex> lock(localMutex);
-
-                    while (!m_shouldStartNode && !m_shouldTerminateModel)
-                    {
-                        m_waiting.wait(lock);
-                    }
+                    std::unique_lock<std::mutex> lock(m_startMutex);
+                    m_waiting.wait(lock, [&]() {return m_shouldStartNode || m_shouldTerminateModel; });
+                    m_shouldStartNode = false;
                 }
 
                 if (!m_shouldTerminateModel)
                 {
                     bool bErr = true;
+                    bool recreate = false;
                     try
                     {
-                        m_shouldStartNode = false;
                         runLocalNode();
                         bErr = false;
                     }
@@ -180,6 +178,7 @@ void NodeClient::start()
                         LOG_ERROR() << ex.what();
                         m_observer->onFailedToStartNode(ex.errorCode);
                         bErr = false;
+                        recreate = true;
                     }
                     catch (const std::runtime_error& ex)
                     {
@@ -192,6 +191,11 @@ void NodeClient::start()
 
                     if (bErr)
                         m_observer->onSyncError(Node::IObserver::Error::Unknown);
+                    
+                    if (recreate)
+                    {
+                        setRecreateTimer(); // attempt to start again
+                    }
                 }
             }
         }
@@ -350,4 +354,20 @@ void NodeClient::runLocalNode()
         m_isRunning = false;
     }
 }
+
+void NodeClient::setRecreateTimer()
+{
+    if (!m_timer)
+    {
+        m_timer = io::Timer::create(io::Reactor::get_Current());
+    }
+    m_timer->start(5000, false, [this]()
+    {
+        io::Reactor::get_Current().stop();
+        startNode();
+    });
+    io::Reactor::get_Current().run();
+
+}
+
 }

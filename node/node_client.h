@@ -62,16 +62,19 @@ public:
 
 private:
     void runLocalNode();
+    void setRecreateTimer();
 
 private:
     INodeClientObserver* m_observer;
     std::shared_ptr<std::thread> m_thread;
     std::weak_ptr<beam::io::Reactor> m_reactor;
-    std::atomic<bool> m_shouldStartNode;
+    std::mutex m_startMutex;
+    bool m_shouldStartNode;
     std::atomic<bool> m_shouldTerminateModel;
     std::atomic<bool> m_isRunning;
     std::condition_variable m_waiting;
-    beam::Key::IKdf::Ptr m_pKdf;
-    beam::Key::IPKdf::Ptr m_ownerKey;
+    Key::IKdf::Ptr m_pKdf;
+    Key::IPKdf::Ptr m_ownerKey;
+    io::Timer::Ptr m_timer;
 };
 }
