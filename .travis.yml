@@ -42,10 +42,6 @@ matrix:
 
     - os: osx
       language: cpp
-      cache:
-        - ccache: false
-        - directories:
-          - $HOME/Library/Caches/Homebrew
       osx_image: xcode10.1
       install:
         - export TZ=GMT-3
@@ -53,7 +49,6 @@ matrix:
         - brew unlink cmake
         - brew install cmake
         - brew link cmake
-        - brew upgrade --ignore-pinned icu4c
         - brew uninstall --ignore-dependencies sfcgal
         - brew uninstall --ignore-dependencies cgal
         - brew uninstall --ignore-dependencies node
